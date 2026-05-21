@@ -64,6 +64,12 @@ export default function RegistrationForm() {
     }
   }, [eventCount]);
 
+  useEffect(() => {
+    // Pre-warm the database connection when the user visits the registration page
+    fetch("/api/register").catch(() => {});
+  }, []);
+
+
   const toggleEvent = (id: string) => {
     setSelectedEvents((prev) =>
       prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]

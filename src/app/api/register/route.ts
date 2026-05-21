@@ -80,3 +80,20 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    await connectDB();
+    return NextResponse.json(
+      { success: true, message: "Database connection warmed up" },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("Warmup Error:", error);
+    return NextResponse.json(
+      { error: "Failed to warm up database connection" },
+      { status: 500 }
+    );
+  }
+}
+
