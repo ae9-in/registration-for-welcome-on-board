@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Download, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -48,6 +48,32 @@ export default function RegistrationsPage() {
       setLoading(false);
     }
   }, [page, search]);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this registration?")) {
+      return;
+    }
+
+    // Optimistically remove from UI
+    const originalRegistrations = [...registrations];
+    setRegistrations(registrations.filter((r) => r._id !== id));
+
+    try {
+      const res = await fetch(`/api/admin/registrations?id=${id}`, {
+        method: "DELETE",
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert(result.error || "Failed to delete registration");
+        setRegistrations(originalRegistrations); // Rollback
+      }
+    } catch (err) {
+      console.error("Error deleting registration", err);
+      alert("Failed to delete registration");
+      setRegistrations(originalRegistrations); // Rollback
+    }
+  };
+
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -114,18 +140,19 @@ export default function RegistrationsPage() {
                 <TableHead className="text-white/60">Events</TableHead>
                 <TableHead className="text-white/60">Amount</TableHead>
                 <TableHead className="text-white/60">Date</TableHead>
+                <TableHead className="text-white/60 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-white/40">
+                  <TableCell colSpan={7} className="h-32 text-center text-white/40">
                     Loading data...
                   </TableCell>
                 </TableRow>
               ) : registrations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-white/40">
+                  <TableCell colSpan={7} className="h-32 text-center text-white/40">
                     No registrations found.
                   </TableCell>
                 </TableRow>
@@ -150,6 +177,15 @@ export default function RegistrationsPage() {
                     </TableCell>
                     <TableCell className="text-white/60 text-sm">
                       {new Date(reg.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        onClick={() => handleDelete(reg._id)}
+                        className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors border border-red-500/20"
+                        title="Delete Registration"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))

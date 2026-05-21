@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       totalAmount = eventCount * 333;
     }
 
-    const registrationId = generateRegistrationId();
+    const registrationId = body.registrationId || generateRegistrationId();
 
     const registration = new Registration({
       studentName,

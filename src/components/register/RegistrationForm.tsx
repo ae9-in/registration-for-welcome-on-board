@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Edit3, Calculator, Palette, Cpu, PenTool, CheckCircle2, AlertCircle, Zap, ChevronDown } from "lucide-react";
+import { Brain, Edit3, Calculator, Palette, Cpu, PenTool, CheckCircle2, AlertCircle, Zap, ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,10 +41,13 @@ export default function RegistrationForm() {
   const [showBundleOffer, setShowBundleOffer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState<{ id: string; amount: number } | null>(null);
+  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'failed'>('synced');
+  const [lastFormData, setLastFormData] = useState<any>(null);
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -81,42 +84,74 @@ export default function RegistrationForm() {
     setShowBundleOffer(false);
   };
 
+  const saveRegistration = async (payload: any) => {
+    setSyncStatus("syncing");
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSyncStatus("synced");
+      } else {
+        console.error("Failed to sync registration:", result.error);
+        setSyncStatus("failed");
+      }
+    } catch (error) {
+      console.error("Network error during registration sync:", error);
+      setSyncStatus("failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const onSubmit = async (data: FormValues) => {
     if (selectedEvents.length === 0) {
       alert("Please select at least one event.");
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const response = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          selectedEvents,
-        }),
-      });
+    // Generate client-side Registration ID instantly
+    const clientRegId = `REG-${Math.floor(10000 + Math.random() * 90000)}`;
 
-      const result = await response.json();
+    // Show success details instantly
+    setSuccessData({ id: clientRegId, amount: totalAmount });
 
-      if (result.success) {
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#00D4FF', '#1E6FFF', '#7C3AED']
-        });
-        setSuccessData({ id: result.registrationId, amount: result.totalAmount });
-      } else {
-        alert(result.error || "Registration failed");
-      }
-    } catch (error) {
-      alert("Something went wrong. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+    // Run confetti instantly
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ["#00D4FF", "#1E6FFF", "#7C3AED"],
+    });
+
+    const payload = {
+      ...data,
+      selectedEvents,
+      registrationId: clientRegId,
+    };
+
+    setLastFormData(payload);
+
+    // Trigger background save (no await, runs asynchronously)
+    saveRegistration(payload);
+
+    // Reset form immediately in background
+    reset();
+    setSelectedEvents([]);
+  };
+
+  const handleRetry = () => {
+    if (lastFormData) {
+      saveRegistration(lastFormData);
     }
   };
+
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto py-6 px-4 relative">
@@ -332,6 +367,38 @@ export default function RegistrationForm() {
               </div>
             </div>
           )}
+          {/* Sync Status Section */}
+          <div className="mt-4 flex flex-col items-center justify-center text-sm">
+            {syncStatus === "syncing" && (
+              <div className="flex items-center gap-2 text-white/60">
+                <Loader2 className="w-4 h-4 animate-spin text-[#00D4FF]" />
+                <span>Securing registration in database...</span>
+              </div>
+            )}
+            {syncStatus === "synced" && (
+              <div className="flex items-center gap-2 text-emerald-400 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Saved successfully to database</span>
+              </div>
+            )}
+            {syncStatus === "failed" && (
+              <div className="flex flex-col items-center gap-2 text-red-400">
+                <div className="flex items-center gap-2 font-medium">
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <span>Sync failed. Please screenshot this ticket!</span>
+                </div>
+                <button
+                  onClick={handleRetry}
+                  disabled={isSubmitting}
+                  className="mt-1 flex items-center gap-1.5 px-3 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md border border-red-500/20 transition-all text-xs font-semibold"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
+                  Retry Sync
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="mt-6 flex justify-center">
             <button
               onClick={() => window.location.href = '/'}

@@ -51,3 +51,38 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await connectDB();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing registration ID" },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await Registration.findByIdAndDelete(id);
+    if (!deleted) {
+      return NextResponse.json(
+        { error: "Registration not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true, message: "Registration deleted successfully" },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("Admin Delete Registration API Error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
